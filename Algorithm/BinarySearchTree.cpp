@@ -12,6 +12,14 @@ enum class ConsoleColor
 	YELLOW = RED | GREEN,
 	WHITE = RED | GREEN | BLUE,
 };
+void ShowConsoleCursor(bool flag)
+{
+	HANDLE output = ::GetStdHandle(STD_OUTPUT_HANDLE);
+	CONSOLE_CURSOR_INFO cursorInfo;
+	::GetConsoleCursorInfo(output, &cursorInfo);
+	cursorInfo.bVisible = flag;
+	::SetConsoleCursorInfo(output, &cursorInfo);
+}
 
 void SetCursorPosition(int x, int y)
 {
@@ -36,6 +44,13 @@ BinarySearchTree::~BinarySearchTree()
 {
 	delete _nil;
 }
+void BinarySearchTree::Print()
+{
+	::system("cls");
+	ShowConsoleCursor(false);
+	Print(_root, 10, 0); 
+}
+
 void BinarySearchTree::Print(Node* node, int x, int y)
 {
 	if (node == _nil)
@@ -252,17 +267,35 @@ void BinarySearchTree::Delete(int key)
 	Delete(deleteNode);
 }
 
+// 먼저 BST 삭제 실행
+//         [20]
+// [10(B)]      [30]
+//   [15(R)]  [25][40]
 void BinarySearchTree::Delete(Node* node)
 {
-	if (node == nullptr)
+	if (node == _nil)
 		return;
 
 	// child가 하나만 있거나, 아예 없거나 둘다 사용.
-	if (node->left == nullptr) 
+	if (node->left == _nil)
+	{
+		Color color = node->color;
+		Node* right = node->right;
 		Replace(node, node->right);
-	else if (node->right == nullptr)
+
+		if (color == Color::Black)
+			DeleteFixup(right);
+	}
+	else if (node->right == _nil)
+	{
+		Color color = node->color;
+		Node* left = node->left;
 		Replace(node, node->left);
-	else
+
+		if (color == Color::Black)
+			DeleteFixup(left);
+	}
+	else // 양 옆에 자식이 있는 경우
 	{
 		// 다음 데이터 찾기
 		Node* next = Next(node);
@@ -271,19 +304,154 @@ void BinarySearchTree::Delete(Node* node)
 	}
 }
 
+// notion case 1~6 참고할 것.
+void BinarySearchTree::DeleteFixup(Node* node)
+{
+	Node* x = node;
+
+	// [Case][Case2]
+	while (x != _root && x->color == Color::Black) // Loop에 빠지는 것 자체가 Double Black.
+	{
+		
+		if (x == x->parent->left)
+		{
+			// [Case3]
+			
+			//      [p(B)]
+			// [x(DB)]   [s(R)]
+
+			//      [p(R)]
+			// [x(DB)]   [s(B)]
+			//          [1]
+
+			//			 [s(B)]
+			//      [p(R)]
+			// [x(DB)]   [1]
+
+			Node* s = x->parent->right;
+			if (s->color == Color::Red)
+			{
+				s->color = Color::Black;
+				x->parent->color = Color::Red;
+
+				LeftRotate(x->parent);
+				s = x->parent->right; // [1]
+			}
+
+			// [Case4]
+			if (s->left->color == Color::Black && s->right->color == Color::Black)
+			{
+				s->color = Color::Red;
+				x = x->parent;
+			}
+			else
+			{
+				//          [p]
+				// [x(DB)]       [s(B)]
+				//         [near(R)][[far(B)]
+
+				//          [p]
+				// [x(DB)]       [s(R)]
+				//         [near(B)][[far(B)]
+
+				//          [p]
+				// [x(DB)]    [near(B)] 
+				//	              [s(R)]
+				//                  [[far(B)]
+
+				//[Case5]
+				if (s->right->color == Color::Black)
+				{
+					s->left->color = Color::Black;
+					s->color = Color::Red;
+					RightRotate(s);
+					s = x->parent->right;
+				}
+				
+				//          [p]
+				//   [x(DB)]   [s(B)]
+				//                [[far(R)]
+				// [Case6]
+				s->color = x->parent->color;
+				x->parent->color = Color::Black;
+				s->right->color = Color::Black;
+				LeftRotate(x->parent);
+				x = _root;
+			}
+		}
+		else
+		{
+			// [Case3]
+			Node* s = x->parent->left;
+			if (s->color == Color::Red)
+			{
+				s->color = Color::Black;
+				x->parent->color = Color::Red;
+
+				RightRotate(x->parent);
+				s = x->parent->left; // [1]
+			}
+
+			// [Case4]
+			if (s->right->color == Color::Black && s->left->color == Color::Black)
+			{
+				s->color = Color::Red;
+				x = x->parent;
+			}
+			else
+			{
+				//          [p]
+				// [x(DB)]       [s(B)]
+				//         [near(R)][[far(B)]
+
+				//          [p]
+				// [x(DB)]       [s(R)]
+				//         [near(B)][[far(B)]
+
+				//          [p]
+				// [x(DB)]    [near(B)] 
+				//	              [s(R)]
+				//                  [[far(B)]
+
+				//[Case5]
+				if (s->left->color == Color::Black)
+				{
+					s->right->color = Color::Black;
+					s->color = Color::Red;
+					LeftRotate(s);
+					s = x->parent->left;
+				}
+
+				//          [p]
+				//   [x(DB)]   [s(B)]
+				//                [[far(R)]
+				// [Case6]
+				s->color = x->parent->color;
+				x->parent->color = Color::Black;
+				s->left->color = Color::Black;
+				RightRotate(x->parent);
+				x = _root;
+			}
+
+		}
+	}
+
+	x->color = Color::Black;
+
+}
+
 // u 서브트리를 v 서브트리로 교체
 // 그리고 delete u
 void BinarySearchTree::Replace(Node* u, Node* v)
 {
-	if (u->parent == nullptr)
+	if (u->parent == _nil)
 		_root = v;
 	else if (u == u->parent->left)
 		u->parent->left = v;
 	else
 		u->parent->right = v; 
 
-	if (v)
-		v->parent = u->parent;
+	v->parent = u->parent;
 
 	delete u;
 }

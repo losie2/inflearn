@@ -32,7 +32,7 @@ public:
 	BinarySearchTree();
 	~BinarySearchTree();
 
-	void Print() {Print(_root, 10, 0);}
+	void Print();
 	void Print(Node* node, int x, int y);
 
 	Node* Search(Node* node, int key);
@@ -46,6 +46,8 @@ public:
 
 	void Delete(int key);
 	void Delete(Node* node);
+	void DeleteFixup(Node* node);
+
 	void Replace(Node* u, Node* v);
 
 	// Red-Black Tree
